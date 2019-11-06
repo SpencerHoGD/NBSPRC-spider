@@ -10,10 +10,11 @@ from threading import Thread
 
 # 网页爬取函数
 # 下面加入了num_retries这个参数，经过测试网络正常一般最多retry一次就能获得结果
-def getUrl(url,num_retries = 5):
-    headers = {'User-Agent':"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36"}
+def getUrl(url, num_retries=5):
+    headers = {
+        'User-Agent': "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36"}
     try:
-        response = requests.get(url,headers = headers)
+        response = requests.get(url, headers=headers)
         response.encoding = 'GBK'
         data = response.text
         return data
@@ -22,183 +23,174 @@ def getUrl(url,num_retries = 5):
             time.sleep(10)
             print(url)
             print("requests fail, retry!")
-            return getUrl(url,num_retries-1) #递归调用
+            return getUrl(url, num_retries-1)  # 递归调用
         else:
             print("retry fail!")
             print("error: %s" % e + " " + url)
-            return #返回空值，程序运行报错
+            return  # 返回空值，程序运行报错
 
 # 获取省级代码函数
-def getProvince(url):
-    province = []
+
+
+def getCityDivide(url):
+    city_divide = []
     data = getUrl(url)
     selector = etree.HTML(data)
-    provinceList = selector.xpath('//tr[@class="provincetr"]')
-    for i in provinceList:
-        provinceName = i.xpath('td/a/text()') #这里如果采用//a/text()路径会出现问题！！
-        provinceLink = i.xpath('td/a/@href')
+    cityDivideList = selector.xpath('//tr[@class="provincetr"]')
+    for i in cityDivideList:
+        cityDivideName = i.xpath('td/a/text()')  # 这里如果采用//a/text()路径会出现问题！！
+        prLink = i.xpath('td/a/@href')
         for j in range(len(provinceLink)):
-            provinceURL = url[:-10] + provinceLink[j] #根据获取到的每个省的链接进行补全，得到真实的URL。
-            province.append({'code':provinceLink[j][:2]+"0000000000",'name':provinceName[j],'link':provinceURL,'type':"province"})
-    return province
+            # 根据获取到的每个省的链接进行补全，得到真实的URL。
+            provinceURL = url[:-10] + provinceLink[j]
+            city_divide.append(
+                {'code': provinceLink[j][:2]+"0000000000", 'name': provinceName[j], 'link': provinceURL, 'type': "province"})
+    return city_divide
 
-# 获取市级代码函数
-def getCity(url_list):
-    city_all = []
-    count = 0
-    for url in url_list:
-        data = getUrl(url)
-        selector = etree.HTML(data)
-        cityList = selector.xpath('//tr[@class="citytr"]')
-        #下面是抓取每一个城市的代码、URL
-        city = []
-        for i in cityList:
-            cityCode = i.xpath('td[1]/a/text()')
-            cityLink = i.xpath('td[1]/a/@href')
-            cityName = i.xpath('td[2]/a/text()')
-            for j in range(len(cityLink)):
-                cityURL = url[:-7] + cityLink[j]
-                city.append({'code':cityCode[j],'name':cityName[j],'link':cityURL,'type':"city"})
-                print(count)
-                count += 1
-        city_all.extend(city) #所有省的城市信息合并在一起
-    return city_all
 
 # 获取区级代码函数---多线程实现
 def getCounty(url_list):
-    queue_county = Queue() #队列
-    thread_num = 10 #进程数
-    county = [] #记录区级信息的字典（全局）
-    
+    queue_county = Queue()  # 队列
+    thread_num = 10  # 进程数
+    county = []  # 记录区级信息的字典（全局）
+
     def produce_url(url_list):
         for url in url_list:
-            queue_county.put(url) # 生成URL存入队列，等待其他线程提取
-    
+            queue_county.put(url)  # 生成URL存入队列，等待其他线程提取
+
     def getData():
-        while not queue_county.empty(): # 保证url遍历结束后能退出线程
-            url = queue_county.get() # 从队列中获取URL
+        while not queue_county.empty():  # 保证url遍历结束后能退出线程
+            url = queue_county.get()  # 从队列中获取URL
             data = getUrl(url)
             selector = etree.HTML(data)
             countyList = selector.xpath('//tr[@class="countytr"]')
-            #下面是爬取每个区的代码、URL
+            # 下面是爬取每个区的代码、URL
             for i in countyList:
                 countyCode = i.xpath('td[1]/a/text()')
                 countyLink = i.xpath('td[1]/a/@href')
                 countyName = i.xpath('td[2]/a/text()')
-                #上面得到的是列表形式的，下面将其每一个用字典存储
+                # 上面得到的是列表形式的，下面将其每一个用字典存储
                 for j in range(len(countyLink)):
                     countyURL = url[:-9] + countyLink[j]
-                    county.append({'code':countyCode[j],'name':countyName[j],'link':countyURL,'type':"county"})
-                
+                    county.append(
+                        {'code': countyCode[j], 'name': countyName[j], 'link': countyURL, 'type': "county"})
+
     def run(url_list):
         produce_url(url_list)
-    
+
         ths = []
         for _ in range(thread_num):
-            th = Thread(target = getData)
+            th = Thread(target=getData)
             th.start()
             ths.append(th)
         for th in ths:
             th.join()
-            
+
     run(url_list)
     return county
 
 # 获取街道代码函数---多线程实现
+
+
 def getTown(url_list):
-    queue_town = Queue() #队列
-    thread_num = 50 #线程数
-    town = [] #记录街道信息的字典（全局）
-    
+    queue_town = Queue()  # 队列
+    thread_num = 50  # 线程数
+    town = []  # 记录街道信息的字典（全局）
+
     def produce_url(url_list):
         for url in url_list:
-            queue_town.put(url) # 生成URL存入队列，等待其他线程提取
-    
+            queue_town.put(url)  # 生成URL存入队列，等待其他线程提取
+
     def getData():
-        while not queue_town.empty(): # 保证url遍历结束后能退出线程
-            url = queue_town.get() # 从队列中获取URL
+        while not queue_town.empty():  # 保证url遍历结束后能退出线程
+            url = queue_town.get()  # 从队列中获取URL
             data = getUrl(url)
             selector = etree.HTML(data)
             townList = selector.xpath('//tr[@class="towntr"]')
-            #下面是爬取每个区的代码、URL
+            # 下面是爬取每个区的代码、URL
             for i in townList:
                 townCode = i.xpath('td[1]/a/text()')
                 townLink = i.xpath('td[1]/a/@href')
                 townName = i.xpath('td[2]/a/text()')
-                #上面得到的是列表形式的，下面将其每一个用字典存储
+                # 上面得到的是列表形式的，下面将其每一个用字典存储
                 for j in range(len(townLink)):
                     # 中山市、东莞市的处理
                     if url == 'http://www.stats.gov.cn/tjsj/tjbz/tjyqhdmhcxhfdm/2016/44/4419.html' or url == 'http://www.stats.gov.cn/tjsj/tjbz/tjyqhdmhcxhfdm/2016/44/4420.html':
                         townURL = url[:-9] + townLink[j]
                     else:
                         townURL = url[:-11] + townLink[j]
-                    town.append({'code':townCode[j],'link':townURL,'name':townName[j]})
-                
+                    town.append(
+                        {'code': townCode[j], 'link': townURL, 'name': townName[j]})
+
     def run(url_list):
         produce_url(url_list)
-    
+
         ths = []
         for _ in range(thread_num):
-            th = Thread(target = getData)
+            th = Thread(target=getData)
             th.start()
             ths.append(th)
         for th in ths:
             th.join()
-            
+
     run(url_list)
     return town
 
 # 获取居委会代码函数---多线程实现
+
+
 def getVillage(url_list):
-    queue_village = Queue() #队列
-    thread_num = 200 #进程数
-    village = [] #记录街道信息的字典（全局）
-    
+    queue_village = Queue()  # 队列
+    thread_num = 200  # 进程数
+    village = []  # 记录街道信息的字典（全局）
+
     def produce_url(url_list):
         for url in url_list:
-            queue_village.put(url) # 生成URL存入队列，等待其他线程提取
-    
+            queue_village.put(url)  # 生成URL存入队列，等待其他线程提取
+
     def getData():
-        while not queue_village.empty(): # 保证url遍历结束后能退出线程
-            url = queue_village.get() # 从队列中获取URL
+        while not queue_village.empty():  # 保证url遍历结束后能退出线程
+            url = queue_village.get()  # 从队列中获取URL
             data = getUrl(url)
             selector = etree.HTML(data)
             villageList = selector.xpath('//tr[@class="villagetr"]')
-            #下面是爬取每个区的代码、URL
+            # 下面是爬取每个区的代码、URL
             for i in villageList:
                 villageCode = i.xpath('td[1]/text()')
                 UrbanRuralCode = i.xpath('td[2]/text()')
                 villageName = i.xpath('td[3]/text()')
-                #上面得到的是列表形式的，下面将其每一个用字典存储
+                # 上面得到的是列表形式的，下面将其每一个用字典存储
                 for j in range(len(villageCode)):
-                    village.append({'code':villageCode[j],'UrbanRuralCode':UrbanRuralCode[j],'name':villageName[j]})
-                
+                    village.append(
+                        {'code': villageCode[j], 'UrbanRuralCode': UrbanRuralCode[j], 'name': villageName[j]})
+
     def run(url_list):
         produce_url(url_list)
-    
+
         ths = []
         for _ in range(thread_num):
-            th = Thread(target = getData)
+            th = Thread(target=getData)
             th.start()
             ths.append(th)
         for th in ths:
             th.join()
-            
+
     run(url_list)
     return village
 
 
 ###########################
 ###########################
-#省级信息获取
-province = getProvince("http://www.stats.gov.cn/tjsj/tjbz/tjyqhdmhcxhfdm/2018/index.html")
+# 省级信息获取
+province = getProvince(
+    "http://www.stats.gov.cn/tjsj/tjbz/tjyqhdmhcxhfdm/2018/index.html")
 df_province = pd.DataFrame(province)
 df_province.info()
 # 信息写入csv文件
 df_province.to_csv('province.csv', sep=',', header=True, index=False)
 
 ###########################
-#市级信息获取
+# 市级信息获取
 city = getCity(df_province['link'])
 df_city = pd.DataFrame(city)
 df_city.info()
