@@ -39,7 +39,7 @@ def getProvince(url):
         provinceLink = i.xpath('td/a/@href')
         for j in range(len(provinceLink)):
             provinceURL = url[:-10] + provinceLink[j] #根据获取到的每个省的链接进行补全，得到真实的URL。
-            province.append({'name':provinceName[j],'link':provinceURL})
+            province.append({'code':provinceLink[j][:2]+"0000000000",'name':provinceName[j],'link':provinceURL,'type':"province"})
     return province
 
 # 获取市级代码函数
@@ -57,7 +57,7 @@ def getCity(url_list):
             cityName = i.xpath('td[2]/a/text()')
             for j in range(len(cityLink)):
                 cityURL = url[:-7] + cityLink[j]
-                city.append({'name':cityName[j],'code':cityCode[j],'link':cityURL})
+                city.append({'code':cityCode[j],'name':cityName[j],'link':cityURL,'type':"city"})
         city_all.extend(city) #所有省的城市信息合并在一起
     return city_all
 
@@ -85,7 +85,7 @@ def getCounty(url_list):
                 #上面得到的是列表形式的，下面将其每一个用字典存储
                 for j in range(len(countyLink)):
                     countyURL = url[:-9] + countyLink[j]
-                    county.append({'code':countyCode[j],'link':countyURL,'name':countyName[j]})
+                    county.append({'code':countyCode[j],'name':countyName[j],'link':countyURL,'type':"county"})
                 
     def run(url_list):
         produce_url(url_list)
@@ -212,22 +212,22 @@ df_county_sorted.info()
 # 信息写入csv文件
 df_county_sorted.to_csv('county.csv', sep=',', header=True, index=False)
 
-###########################
-#街道信息获取
-#中山市、东莞市的特殊处理（他们的链接在df_city中）
-url_list = list()
-for url in df_county['link']:
-    url_list.append(url)
-town_link_list = df_city[df_city['name'].isin(['中山市','东莞市'])]['link'].values
-for town_link in town_link_list:
-    url_list.append(town_link)
-town = getTown(url_list)
-df_town = pd.DataFrame(town)
-# 排序:由于多线程的关系，数据的顺序已经被打乱，所以这里按照街道代码进行“升序”排序。
-df_town_sorted = df_town.sort_values(by = ['code']) #按1列进行升序排序
-df_town_sorted.info()
-# 信息写入csv文件
-df_town_sorted.to_csv('town.csv', sep=',', header=True, index=False)
+# ###########################
+# #街道信息获取
+# #中山市、东莞市的特殊处理（他们的链接在df_city中）
+# url_list = list()
+# for url in df_county['link']:
+#     url_list.append(url)
+# town_link_list = df_city[df_city['name'].isin(['中山市','东莞市'])]['link'].values
+# for town_link in town_link_list:
+#     url_list.append(town_link)
+# town = getTown(url_list)
+# df_town = pd.DataFrame(town)
+# # 排序:由于多线程的关系，数据的顺序已经被打乱，所以这里按照街道代码进行“升序”排序。
+# df_town_sorted = df_town.sort_values(by = ['code']) #按1列进行升序排序
+# df_town_sorted.info()
+# # 信息写入csv文件
+# df_town_sorted.to_csv('town.csv', sep=',', header=True, index=False)
 
 # ###########################
 # #居委会信息获取

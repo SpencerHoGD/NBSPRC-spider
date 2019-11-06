@@ -26,3 +26,5 @@ datalist_sorted = datalist.sort_values(by = ['code']) #按1列进行升序排序
 # 结果写入csv文件
 datalist_sorted.to_csv("village_all.csv", sep = ',', header = True,index = False)
 
+
+print(u'去重排序完毕！')
