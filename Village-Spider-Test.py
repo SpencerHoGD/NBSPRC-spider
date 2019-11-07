@@ -72,7 +72,7 @@ def getVillage(url_list):
 
 
 df_town = pd.read_csv("town.csv",encoding = 'utf-8')
-village = getVillage(df_town['link'][0:10000])
+village = getVillage(df_town['link'][0:1000])
 
 df_village = pd.DataFrame(village)
 # 信息写入csv文件

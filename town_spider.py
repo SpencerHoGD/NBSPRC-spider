@@ -6,13 +6,14 @@ import time
 import pandas as pd
 from queue import Queue
 from threading import Thread
+from fake_useragent import UserAgent
 
 
 # 网页爬取函数
 # 下面加入了num_retries这个参数，经过测试网络正常一般最多retry一次就能获得结果
 def getUrl(url, num_retries=5):
-    headers = {
-        'User-Agent': "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36"}
+    ua = UserAgent()
+    headers = {'User-Agent':ua.random}
     try:
         response = requests.get(url, headers=headers)
         response.encoding = 'GBK'
@@ -33,7 +34,7 @@ def getUrl(url, num_retries=5):
 # 获取街道代码函数---多线程实现
 def getTown(url_list):
     queue_town = Queue()  # 队列
-    thread_num = 50  # 线程数
+    thread_num = 20  # 线程数
     town = []  # 记录街道信息的字典（全局）
 
     def produce_url(url_list):
@@ -46,7 +47,6 @@ def getTown(url_list):
             data = getUrl(url)
             selector = etree.HTML(data)
             townList = selector.xpath('//tr[@class="towntr"]')
-            count = 0
             # 下面是爬取每个区的代码、URL
             for i in townList:
                 townCode = i.xpath('td[1]/a/text()')
@@ -61,8 +61,6 @@ def getTown(url_list):
                         townURL = url[:-11] + townLink[j]
                     town.append(
                         {'code': townCode[j], 'name': townName[j], 'link': townURL, 'type': "town"})
-                    count += 1
-                    print(count)
 
     def run(url_list):
         produce_url(url_list)

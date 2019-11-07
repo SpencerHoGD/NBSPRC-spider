@@ -6,12 +6,14 @@ import time
 import pandas as pd
 from queue import Queue
 from threading import Thread
+from fake_useragent import UserAgent
 
 
 # 网页爬取函数
 # 下面加入了num_retries这个参数，经过测试网络正常一般最多retry一次就能获得结果
 def getUrl(url,num_retries = 5):
-    headers = {'User-Agent':"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36"}
+    ua = UserAgent()
+    headers = {'User-Agent':ua.random}
     try:
         response = requests.get(url,headers = headers)
         response.encoding = 'GBK'
